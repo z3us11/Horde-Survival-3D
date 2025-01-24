@@ -1,13 +1,20 @@
+using Cinemachine;
 using DG.Tweening;
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class CharacterController : MonoBehaviour
 {
+    [SerializeField] CinemachineVirtualCamera virtualCamera;
+    [Space]
+    [SerializeField] Joystick joystick;
+    [SerializeField] bool useJoystick;
+    [Space]
     [SerializeField] float maxMoveVelocity;
     [SerializeField] float minMoveForce;
     [SerializeField] float maxMoveForce;
@@ -33,7 +40,9 @@ public class CharacterController : MonoBehaviour
     [Space]
     [SerializeField] Transform shipRb;
     [SerializeField] Transform shipModel;
-    [SerializeField] bool type1;
+    public bool type1;
+    [Header("Sound")]
+    [SerializeField] AudioSource boosterSound;
     [Header("UI")]
     [SerializeField] Image boostFillImg;
     [SerializeField] TMP_Text currentVelocityTxt;
@@ -67,15 +76,68 @@ public class CharacterController : MonoBehaviour
 
     private void Update()
     {
+        if(!useJoystick)
+        {
+            BoostInput();
+            BrakeInput();
+        }
         Boost();
         Brake();
         //Boosting();
+        PlaySound();
+        CameraControls();
+    }
 
+    void CameraControls()
+    {
+        float fov = ValueMapper.MapValue(rb.velocity.magnitude, 0, 150, 45, 60);
+        virtualCamera.m_Lens.FieldOfView = fov;
+    }
+
+    void PlaySound()
+    {
+        if(rb.velocity.magnitude > 0.2f)
+        {
+            if(!boosterSound.isPlaying)
+            {
+                boosterSound.Play();
+            }
+            boosterSound.volume = ValueMapper.MapValue(rb.velocity.magnitude, 0, maxMoveVelocity, 0, 1);
+        }
+        else
+        {
+            if (boosterSound.isPlaying)
+                boosterSound.Stop();
+        }
+    }
+
+    public void BrakeButtonPressed()
+    {
+        if(useJoystick)
+            isBraking = true;
+    }
+
+    public void BrakeButtonReleased()
+    {
+        if(useJoystick)
+            isBraking = false;
+    }
+
+    void BrakeInput()
+    {
+        if (Input.GetButton("Brake"))
+        {
+            isBraking = true;
+        }
+        else
+        {
+            isBraking = false;
+        }
     }
 
     void Brake()
     {
-        if (Input.GetButton("Brake"))
+        if (isBraking)
         {
             //if (boostSlider.value > 0)
             //    boostSlider.value -= moveForceChangeRate;
@@ -84,7 +146,7 @@ public class CharacterController : MonoBehaviour
             if (rb.velocity.magnitude > 0.2f)
             {
                 isBraking = true;
-                Vector3 decelerationForce = -rb.velocity.normalized * rb.mass * brakeForce;
+                Vector3 decelerationForce = -rb.velocity.normalized * rb.mass * brakeForce * Time.deltaTime;
 
                 // Apply force opposite to the current velocity
                 rb.AddForce(decelerationForce, ForceMode.Force);
@@ -115,18 +177,40 @@ public class CharacterController : MonoBehaviour
         }
     }
 
-    void Boost()
+    public void BoostButtonPressed()
     {
-        if(Input.GetButton("Sprint"))
+        if(useJoystick)
+            isBoosting = true;
+    }
+
+    public void BoostButtonReleased()
+    {
+        if(useJoystick)
+            isBoosting = false;
+    }
+
+    void BoostInput()
+    {
+        if (Input.GetButton("Sprint"))
         {
             isBoosting = true;
-            boostSlider.value += moveForceChangeRate;
         }
         else
         {
             isBoosting = false;
+        }
+    }
+    
+    void Boost()
+    {
+        if(isBoosting)
+        {
+            boostSlider.value += moveForceChangeRate * Time.deltaTime;
+        }
+        else
+        {
             if (boostSlider.value > 0)
-                boostSlider.value -= moveForceChangeRate;
+                boostSlider.value -= moveForceChangeRate * Time.deltaTime;
         }
         return;
 
@@ -167,6 +251,12 @@ public class CharacterController : MonoBehaviour
     {
         float xVal = Input.GetAxisRaw("Horizontal");
         float yVal = Input.GetAxisRaw("Vertical");
+
+        if(useJoystick)
+        {
+            xVal = joystick.Horizontal;
+            yVal = joystick.Vertical;
+        }
 
         if (xVal != 0 || yVal != 0 && !isBraking)
         {
@@ -221,7 +311,11 @@ public class CharacterController : MonoBehaviour
         float xVal = Input.GetAxisRaw("Horizontal");
         float zVal = Input.GetAxisRaw("Vertical");
 
-
+        if(useJoystick)
+        {
+            xVal = joystick.Horizontal;
+            zVal = joystick.Vertical;
+        }
         //if (xVal != 0 || zVal != 0)
         //{
         //    ship.transform.rotation = Quaternion.LookRotation(rb.velocity);
@@ -271,6 +365,11 @@ public class CharacterController : MonoBehaviour
             shipModel.rotation = Quaternion.Euler(0, targetRotation.eulerAngles.y, 0);
         }
 
+    }
+
+    public void Restart()
+    {
+        SceneManager.LoadScene(0);
     }
 
 }

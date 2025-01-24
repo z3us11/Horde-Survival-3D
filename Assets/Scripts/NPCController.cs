@@ -30,8 +30,8 @@ public class NPCController : MonoBehaviour
         }
 
         var direction = characterController.transform.position - transform.position;
-        if(rb.velocity.magnitude < maxMoveSpeed)
-            rb.AddForce(direction * moveForce * Time.deltaTime);
+        //if(rb.velocity.magnitude < maxMoveSpeed)
+            rb.velocity = direction.normalized * moveForce;
         // Remove vertical (Y-axis) difference if you only want horizontal rotation
         direction.y = 0f;
         // Check if the direction vector is valid
